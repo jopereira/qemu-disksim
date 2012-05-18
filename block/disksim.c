@@ -39,6 +39,8 @@ typedef struct BDRVDiskSimState {
 	pthread_mutex_t mtx;
 	pthread_cond_t cond;
 	pthread_t thr;
+
+	int cnt;
 } BDRVDiskSimState;
 
 typedef struct BDRVDiskSimReq {
@@ -81,8 +83,16 @@ static void finalize_request(void* opaque) {
 }
 
 static void schedule_request(BDRVDiskSimReq* req) {
+	BDRVDiskSimState* s = req->bs->opaque;
+
 	if (req->status != DS_READY && req->timer == NULL)
 		return;
+
+	if (s->cnt++ < 10) {
+		/* Avoid deadlock during boot */
+		finalize_request(req);
+		return;
+	}
 
 	req->timer = qemu_new_timer_ns(rt_clock, finalize_request, req);
 	qemu_mod_timer_ns(req->timer, req->deadline);
