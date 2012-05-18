@@ -2073,11 +2073,20 @@ fi # test "$curl"
 ##########################################
 # disksim probe
 
-disksim_cflags=""
-disksim_libs=""
-libs_tools="$disksim_libs $libs_tools"
-libs_softmmu="$disksim_libs $libs_softmmu"
-disksim=yes
+if test "$disksim" == "yes" ; then
+  ds_topdir="../disksim-4.0"
+  if test -d $ds_topdir ; then
+  	ds_topdir=$(readlink -f $ds_topdir)
+    disksim_cflags="-I $ds_topdir/include -I $ds_topdir/src"
+    disksim_libs="-L $ds_topdir/src/ -ldisksim -L $ds_topdir/diskmodel/ -ldiskmodel \
+      -L $ds_topdir/libparam/ -lparam -L $ds_topdir/libddbg/ -lddbg \
+      -L $ds_topdir/memsmodel/ -lmemsmodel -lm"
+    libs_tools="$disksim_libs $libs_tools"
+    libs_softmmu="$disksim_libs $libs_softmmu"
+  else
+    feature_not_found "DiskSim"
+  fi
+fi
 
 ##########################################
 # bluez support probe

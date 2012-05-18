@@ -27,12 +27,50 @@
 #include "block_int.h"
 #include "module.h"
 
-typedef struct BDRVDiskSimState {
+#include <disksim_interface.h>
 
+typedef struct BDRVDiskSimState {
+	struct disksim_interface *disksim;
 } BDRVDiskSimState;
 
+
+static void sim_schedule_callback(disksim_interface_callback_t cb, double time, void* ctx) {
+}
+
+static void sim_deschedule_callback(double time, void *ctx) {
+}
+
+static void sim_report_completion(double time, struct disksim_request *r, void *ctx) {
+}
+
 static int disksim_open(BlockDriverState *bs, const char *filename, int bdrv_flags) {
-	return bdrv_file_open(&bs->file, filename, bdrv_flags);
+	BDRVDiskSimState* s = bs->opaque;
+	char *parv, *stats, *file;
+	int ret;
+
+	if (strncmp(filename, "disksim:", strlen("disksim:")))
+		return -EINVAL;
+	parv = filename + strlen("disksim:");
+
+	if (!(stats = strchr(parv, ':')))
+		return -EINVAL;
+	*(stats++) = 0;
+
+	if (!(file = strchr(stats, ':')))
+		return -EINVAL;
+	*(file++) = 0;
+
+	s->disksim = disksim_interface_initialize(parv, stats,
+	        sim_report_completion, sim_schedule_callback, sim_deschedule_callback,
+	        bs, 0, NULL);
+	if (s->disksim == NULL)
+		return -EINVAL;
+
+	ret = bdrv_file_open(&bs->file, file, bdrv_flags);
+	if (ret != 0)
+		disksim_interface_shutdown(s->disksim, 0);
+
+	return ret;
 }
 
 static void disksim_close(BlockDriverState *bs) {
