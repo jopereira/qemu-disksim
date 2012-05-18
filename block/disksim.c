@@ -53,6 +53,7 @@ typedef struct BDRVDiskSimReq {
 	
 	int ret;
 	int64_t deadline;
+	QEMUTimer* timer;
 } BDRVDiskSimReq;
 
 /* Request states */
@@ -70,13 +71,21 @@ static int64_t s2r_time(double time, BDRVDiskSimState* s) {
 }
 
 /* Request finalization */
-static void finalize_request(BDRVDiskSimReq* req) {
-	if (req->status != DS_READY)
+static void finalize_request(void* opaque) {
+	BDRVDiskSimReq* req = opaque;
+
+	req->cb(req->opaque, req->ret);
+
+	qemu_free_timer(req->timer);
+	g_free(req);
+}
+
+static void schedule_request(BDRVDiskSimReq* req) {
+	if (req->status != DS_READY && req->timer == NULL)
 		return;
 
-	// TODO schedule
-	req->cb(req->opaque, req->ret);
-	g_free(req);
+	req->timer = qemu_new_timer_ns(rt_clock, finalize_request, req);
+	qemu_mod_timer_ns(req->timer, req->deadline);
 }
 
 /* Simulated device */
@@ -106,7 +115,7 @@ static void sim_report_completion(double time, struct disksim_request *r, void *
 	req->deadline = s2r_time(time, req->bs->opaque);
 	req->status |= DS_SCHEDULED;
 
-	finalize_request(req);
+	schedule_request(req);
 }
 
 static void* sim_thread(void* p) {
@@ -154,7 +163,7 @@ static void driver_report_completion(void *opaque, int ret) {
 	req->ret = ret;
 	req->status |= DS_COMPLETE;
 
-	finalize_request(req);
+	schedule_request(req);
 	pthread_mutex_unlock(&s->mtx);
 }
 
