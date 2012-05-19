@@ -23,6 +23,8 @@
  */
 
 #include "qemu-common.h"
+#include "qemu-aio.h"
+#include "main-loop.h"
 #include "qemu-timer.h"
 #include "block_int.h"
 #include "module.h"
@@ -56,6 +58,7 @@ typedef struct BDRVDiskSimReq {
 	int ret;
 	int64_t deadline;
 	QEMUTimer* timer;
+	QEMUBH* bh;
 } BDRVDiskSimReq;
 
 /* Request states */
@@ -78,7 +81,11 @@ static void finalize_request(void* opaque) {
 
 	req->cb(req->opaque, req->ret);
 
-	qemu_free_timer(req->timer);
+	if (req->timer != NULL)
+		qemu_free_timer(req->timer);
+	if (req->bh != NULL)
+		qemu_bh_delete(req->bh);
+
 	g_free(req);
 }
 
@@ -94,8 +101,14 @@ static void schedule_request(BDRVDiskSimReq* req) {
 		return;
 	}
 
-	req->timer = qemu_new_timer_ns(rt_clock, finalize_request, req);
-	qemu_mod_timer_ns(req->timer, req->deadline);
+	/* As in MIN_TIMER_REARM_NS (see qemu-timer.c) */
+	if ((req->deadline-qemu_get_clock_ns(rt_clock)) < 250000) {
+		req->bh = qemu_bh_new(finalize_request, req);
+		qemu_bh_schedule(req->bh);
+	} else {
+		req->timer = qemu_new_timer_ns(rt_clock, finalize_request, req);
+		qemu_mod_timer_ns(req->timer, req->deadline);
+	}
 }
 
 /* Simulated device */
