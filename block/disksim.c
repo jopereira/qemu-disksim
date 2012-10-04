@@ -45,7 +45,8 @@ static void sim_report_completion(double time, struct disksim_request *r, void *
 
 static int disksim_open(BlockDriverState *bs, const char *filename, int bdrv_flags) {
 	BDRVDiskSimState* s = bs->opaque;
-	char *parv, *stats, *file;
+	const char *parv;
+	char *stats, *file;
 	int ret;
 
 	if (strncmp(filename, "disksim:", strlen("disksim:")))
