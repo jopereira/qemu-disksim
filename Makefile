@@ -121,6 +121,8 @@ audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 
 QEMU_CFLAGS+=$(CURL_CFLAGS)
 
+QEMU_CFLAGS+=$(DISKSIM_CFLAGS)
+
 QEMU_CFLAGS += -I$(SRC_PATH)/include
 
 ui/cocoa.o: ui/cocoa.m

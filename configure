@@ -142,6 +142,7 @@ target_list=""
 bluez=""
 brlapi=""
 curl=""
+disksim=""
 curses=""
 docs=""
 fdt=""
@@ -786,6 +787,10 @@ for opt do
   ;;
   --enable-curl) curl="yes"
   ;;
+  --disable-disksim) disksim="no"
+  ;;
+  --enable-disksim) disksim="yes"
+  ;;
   --disable-fdt) fdt="no"
   ;;
   --enable-fdt) fdt="yes"
@@ -1063,6 +1068,8 @@ echo "  --disable-curses         disable curses output"
 echo "  --enable-curses          enable curses output"
 echo "  --disable-curl           disable curl connectivity"
 echo "  --enable-curl            enable curl connectivity"
+echo "  --disable-disksim        disable DiskSim integration"
+echo "  --enable-disksim         enable DiskSim integration"
 echo "  --disable-fdt            disable fdt device tree"
 echo "  --enable-fdt             enable fdt device tree"
 echo "  --disable-bluez          disable bluez stack connectivity"
@@ -2062,6 +2069,15 @@ EOF
     curl=no
   fi
 fi # test "$curl"
+
+##########################################
+# disksim probe
+
+disksim_cflags=""
+disksim_libs=""
+libs_tools="$disksim_libs $libs_tools"
+libs_softmmu="$disksim_libs $libs_softmmu"
+disksim=yes
 
 ##########################################
 # bluez support probe
@@ -3119,6 +3135,7 @@ fi
 echo "SDL support       $sdl"
 echo "curses support    $curses"
 echo "curl support      $curl"
+echo "DiskSim support   $disksim"
 echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
 echo "Extra audio cards $audio_card_list"
@@ -3385,6 +3402,10 @@ fi
 if test "$curl" = "yes" ; then
   echo "CONFIG_CURL=y" >> $config_host_mak
   echo "CURL_CFLAGS=$curl_cflags" >> $config_host_mak
+fi
+if test "$disksim" = "yes" ; then
+  echo "CONFIG_DISKSIM=y" >> $config_host_mak
+  echo "DISKSIM_CFLAGS=$disksim_cflags" >> $config_host_mak
 fi
 if test "$brlapi" = "yes" ; then
   echo "CONFIG_BRLAPI=y" >> $config_host_mak
