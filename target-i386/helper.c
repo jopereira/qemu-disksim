@@ -284,7 +284,7 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf,
         cpu_fprintf(f, "\nDR6=" TARGET_FMT_lx " DR7=" TARGET_FMT_lx "\n",
                     env->dr[6], env->dr[7]);
     }
-    if (flags & X86_DUMP_CCOP) {
+    if (flags & CPU_DUMP_CCOP) {
         if ((unsigned)env->cc_op < CC_OP_NB)
             snprintf(cc_op_name, sizeof(cc_op_name), "%s", cc_op_str[env->cc_op]);
         else
@@ -303,7 +303,7 @@ void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf,
         }
     }
     cpu_fprintf(f, "EFER=%016" PRIx64 "\n", env->efer);
-    if (flags & X86_DUMP_FPU) {
+    if (flags & CPU_DUMP_FPU) {
         int fptag;
         fptag = 0;
         for(i = 0; i < 8; i++) {
@@ -503,7 +503,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     uint64_t ptep, pte;
     target_ulong pde_addr, pte_addr;
     int error_code, is_dirty, prot, page_size, is_write, is_user;
-    target_phys_addr_t paddr;
+    hwaddr paddr;
     uint32_t page_offset;
     target_ulong vaddr, virt_addr;
 
@@ -869,11 +869,11 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUX86State *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUX86State *env, target_ulong addr)
 {
     target_ulong pde_addr, pte_addr;
     uint64_t pte;
-    target_phys_addr_t paddr;
+    hwaddr paddr;
     uint32_t page_offset;
     int page_size;
 
@@ -1141,10 +1141,11 @@ static void do_inject_x86_mce(void *data)
     }
 }
 
-void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
+void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags)
 {
+    CPUX86State *cenv = &cpu->env;
     MCEInjectionParams params = {
         .mon = mon,
         .env = cenv,
@@ -1176,7 +1177,7 @@ void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
         return;
     }
 
-    run_on_cpu(cenv, do_inject_x86_mce, &params);
+    run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
     if (flags & MCE_INJECT_BROADCAST) {
         params.bank = 1;
         params.status = MCI_STATUS_VAL | MCI_STATUS_UC;
@@ -1188,7 +1189,7 @@ void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
                 continue;
             }
             params.env = env;
-            run_on_cpu(cenv, do_inject_x86_mce, &params);
+            run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
         }
     }
 }
@@ -1243,6 +1244,7 @@ X86CPU *cpu_x86_init(const char *cpu_model)
 {
     X86CPU *cpu;
     CPUX86State *env;
+    Error *error = NULL;
 
     cpu = X86_CPU(object_new(TYPE_X86_CPU));
     env = &cpu->env;
@@ -1253,8 +1255,12 @@ X86CPU *cpu_x86_init(const char *cpu_model)
         return NULL;
     }
 
-    x86_cpu_realize(OBJECT(cpu), NULL);
-
+    x86_cpu_realize(OBJECT(cpu), &error);
+    if (error) {
+        error_free(error);
+        object_delete(OBJECT(cpu));
+        return NULL;
+    }
     return cpu;
 }
 

@@ -21,11 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "net/socket.h"
-
 #include "config-host.h"
 
 #include "net.h"
+#include "clients.h"
 #include "monitor.h"
 #include "qemu-char.h"
 #include "qemu-common.h"
@@ -748,7 +747,7 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
         error_report("localaddr= is mandatory with udp=");
         return -1;
     }
-    if (net_socket_udp_init(peer, "udp", name, sock->udp, sock->localaddr) ==
+    if (net_socket_udp_init(peer, "socket", name, sock->udp, sock->localaddr) ==
         -1) {
         return -1;
     }

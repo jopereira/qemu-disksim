@@ -91,9 +91,9 @@ const char *%(name)s_lookup[] = {
 
 def generate_enum_name(name):
     if name.isupper():
-        return c_fun(name)
+        return c_fun(name, False)
     new_name = ''
-    for c in c_fun(name):
+    for c in c_fun(name, False):
         if c.isupper():
             new_name += '_'
         new_name += c
@@ -273,7 +273,8 @@ fdecl.write(mcgen('''
 #ifndef %(guard)s
 #define %(guard)s
 
-#include "qemu-common.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 ''',
                   guard=guardname(h_file)))
